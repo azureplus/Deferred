@@ -9,16 +9,16 @@
 import Foundation
 
 public protocol ReadWriteLock: class {
-    func withReadLock<T>(_ block: () -> T) -> T
-    func withWriteLock<T>(_ block: () -> T) -> T
+    func withReadLock<T>(block: () -> T) -> T
+    func withWriteLock<T>(block: () -> T) -> T
 }
 
 public final class GCDReadWriteLock: ReadWriteLock {
-    fileprivate let queue = DispatchQueue(label: "GCDReadWriteLock", attributes: DispatchQueue.Attributes.concurrent)
+    private let queue = DispatchQueue(label: "GCDReadWriteLock",  attributes: DispatchQueue.Attributes.concurrent)
 
     public init() {}
 
-    public func withReadLock<T>(_ block: () -> T) -> T {
+    public func withReadLock<T>(block: () -> T) -> T {
         var result: T!
         queue.sync {
             result = block()
@@ -26,17 +26,17 @@ public final class GCDReadWriteLock: ReadWriteLock {
         return result
     }
 
-    public func withWriteLock<T>(_ block: () -> T) -> T {
+    public func withWriteLock<T>( block: () -> T) -> T {
         var result: T!
         queue.sync(flags: .barrier, execute: {
             result = block()
-        }) 
+        })
         return result
     }
 }
 
 public final class SpinLock: ReadWriteLock {
-    fileprivate var lock: UnsafeMutablePointer<Int32>
+    private var lock: UnsafeMutablePointer<Int32>
 
     public init() {
         lock = UnsafeMutablePointer.allocate(capacity: 1)
@@ -47,14 +47,14 @@ public final class SpinLock: ReadWriteLock {
         lock.deallocate(capacity: 1)
     }
 
-    public func withReadLock<T>(_ block: () -> T) -> T {
+    public func withReadLock<T>(block: () -> T) -> T {
         OSSpinLockLock(lock)
         let result = block()
         OSSpinLockUnlock(lock)
         return result
     }
 
-    public func withWriteLock<T>(_ block: () -> T) -> T {
+    public func withWriteLock<T>(block: () -> T) -> T {
         OSSpinLockLock(lock)
         let result = block()
         OSSpinLockUnlock(lock)
@@ -64,14 +64,14 @@ public final class SpinLock: ReadWriteLock {
 
 /// Test comment 2
 public final class CASSpinLock: ReadWriteLock {
-    fileprivate struct Masks {
+    private struct Masks {
         static let WRITER_BIT: Int32         = 0x40000000
         static let WRITER_WAITING_BIT: Int32 = 0x20000000
         static let MASK_WRITER_BITS          = WRITER_BIT | WRITER_WAITING_BIT
         static let MASK_READER_BITS          = ~MASK_WRITER_BITS
     }
 
-    fileprivate var _state: UnsafeMutablePointer<Int32>
+    private var _state: UnsafeMutablePointer<Int32>
 
     public init() {
         _state = UnsafeMutablePointer.allocate(capacity: 1)
@@ -82,7 +82,7 @@ public final class CASSpinLock: ReadWriteLock {
         _state.deallocate(capacity: 1)
     }
 
-    public func withWriteLock<T>(_ block: () -> T) -> T {
+    public func withWriteLock<T>(block: () -> T) -> T {
         // spin until we acquire write lock
         repeat {
             let state = _state.pointee
@@ -118,7 +118,7 @@ public final class CASSpinLock: ReadWriteLock {
         return result
     }
 
-    public func withReadLock<T>(_ block: () -> T) -> T {
+    public func withReadLock<T>(block: () -> T) -> T {
         // spin until we acquire read lock
         repeat {
             let state = _state.pointee

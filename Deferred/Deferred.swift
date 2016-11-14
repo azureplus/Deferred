@@ -125,7 +125,7 @@ extension Deferred {
     }
 }
 
-public func all<T>(deferreds: [Deferred<T>]) -> Deferred<[T]> {
+func all<T>(deferreds: [Deferred<T>]) -> Deferred<[T]> {
     if deferreds.count == 0 {
         return Deferred(value: [])
     }
@@ -144,11 +144,10 @@ public func all<T>(deferreds: [Deferred<T>]) -> Deferred<[T]> {
         }
     }
     deferreds[0].upon(block: block)
-
     return combined
 }
 
-public func any<T>(deferreds: [Deferred<T>]) -> Deferred<Deferred<T>> {
+func any<T>(deferreds: [Deferred<T>]) -> Deferred<Deferred<T>> {
     let combined = Deferred<Deferred<T>>()
     for d in deferreds {
         d.upon { _ in combined.fillIfUnfilled(value: d) }
